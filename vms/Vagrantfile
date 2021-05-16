@@ -15,10 +15,10 @@ Vagrant.configure("2") do |config|
 
       if key == "bastionhost"
         srv.vm.network "public_network"
-        srv.vm.synced_folder "../../vms", "/vmsconfig"
+        srv.vm.synced_folder "../vms", "/vmsconfig"
       end
 
-      srv.vm.synced_folder "../../data", "/vmsdata"
+      srv.vm.synced_folder "../data", "/vmsdata"
 
       srv.vm.provider "virtualbox" do |vb|
         vb.gui = false
