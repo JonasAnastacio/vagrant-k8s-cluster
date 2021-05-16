@@ -1,0 +1,12 @@
+bastionhost:
+  ip: 192.168.50.10
+  memoryRequest: 1024
+master1:
+  ip: 192.168.50.11
+  memoryRequest: 3076
+worker1:
+  ip: 192.168.50.12
+  memoryRequest: 3076
+worker2:
+  ip: 192.168.50.13
+  memoryRequest: 3076

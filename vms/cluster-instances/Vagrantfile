@@ -1,0 +1,64 @@
+# Require YAML module
+require 'yaml'
+
+# Read YAML file with box details
+servers = YAML.load_file('instances.yaml')
+Vagrant.configure("2") do |config|
+  servers.each do |key,value|
+    config.vm.define key do |srv|
+    
+      srv.vm.box = "generic/oracle7"
+      srv.vm.box_check_update = false
+      srv.vm.hostname=key
+      srv.vm.network "private_network", ip: value['ip'],
+        virtualbox__intnet: true
+
+      if key == "bastionhost"
+        srv.vm.network "public_network"
+        srv.vm.synced_folder "../../vms", "/vmsconfig"
+      end
+
+      srv.vm.synced_folder "../../data", "/vmsdata"
+
+      srv.vm.provider "virtualbox" do |vb|
+        vb.gui = false
+        vb.memory = value['memoryRequest']
+      end
+      
+      if key == "bastionhost"      
+        srv.vm.provision "shell", inline: <<-SHELL
+          echo "reposdir=/vmsdata/yum.repos.d" >> /etc/yum.conf
+          yum update -y
+          yum install git ansible python3 libselinux-python3 kubectl -y
+          git clone https://github.com/kubernetes-sigs/kubespray.git /home/vagrant/ansibleKubespray
+          chown vagrant:vagrant /home/vagrant/ansibleKubespray -R
+          chmod 755 /home/vagrant/ansibleKubespray -R
+          sudo pip3 install -r /home/vagrant/ansibleKubespray/requirements.txt
+          cp /vmsdata/ansiblefiles/ssl/* /home/vagrant/.ssh/
+          chown vagrant:vagrant /home/vagrant/.ssh/*
+          chmod 600 /home/vagrant/.ssh/*
+          echo '
+192.168.50.11 master1
+192.168.50.12 worker1
+192.168.50.13 worker2' >> /etc/hosts
+          echo '
+export KUBECONFIG=~/.kube/config' >> /home/vagrant/.bashrc
+        SHELL
+      else
+        srv.vm.provision "shell", inline: <<-SHELL
+          echo "reposdir=/vmsdata/yum.repos.d" >> /etc/yum.conf
+          yum update -y
+          systemctl stop firewalld
+          echo '
+          export PATH=$PATH:/usr/local/bin' >> ~/.bashrc
+          source ~/.bashrc
+          cp /vmsdata/ansiblefiles/ssl/* /home/vagrant/.ssh/
+          chown vagrant:vagrant /home/vagrant/.ssh/*
+          chmod 600 /home/vagrant/.ssh/*
+          if [ $HOSTNAME == master1 ]; then ln -sf /vmsdata/newusr/new-kube-user.sh /usr/bin/newusr; fi
+        SHELL
+      end
+
+    end
+  end
+end
